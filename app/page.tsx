@@ -1,23 +1,46 @@
 "use client"
 import React, { useState } from 'react';
 import Head from 'next/head';
-
-interface Block {
-  id: string;
-  type: 'text' | 'heading';
-  content: string;
-}
+import { Block, BlockType, ListItem } from '@/lib/types';
+import BlockComponent from '../components/BlockComponent';
 
 const Home: React.FC = () => {
   const [blocks, setBlocks] = useState<Block[]>([
-    { id: '1', type: 'heading', content: 'Welcome to Notion Clone' },
-    { id: '2', type: 'text', content: 'Start typing here...' },
+    { id: '1', type: 'heading1', content: 'Welcome to Notion Clone' },
+    { id: '2', type: 'paragraph', content: '' },
   ]);
 
-  const handleBlockChange = (id: string, content: string) => {
+  const handleBlockChange = (id: string, content: string | ListItem[]) => {
     setBlocks(blocks.map(block => 
       block.id === id ? { ...block, content } : block
     ));
+  };
+
+  const handleBlockTypeChange = (id: string, newType: BlockType) => {
+    setBlocks(blocks.map(block => {
+      if (block.id === id) {
+        if ((newType === 'bulletList' || newType === 'numberedList') && typeof block.content === 'string') {
+          return { ...block, type: newType, content: [{ id: Date.now().toString(), content: block.content }] };
+        } else if ((block.type === 'bulletList' || block.type === 'numberedList') && Array.isArray(block.content)) {
+          return { ...block, type: newType, content: block.content[0]?.content || '' };
+        } else {
+          return { ...block, type: newType };
+        }
+      }
+      return block;
+    }));
+  };
+
+  const addNewBlock = (id: string) => {
+    const index = blocks.findIndex(block => block.id === id);
+    const newBlock: Block = { id: Date.now().toString(), type: 'paragraph', content: '' };
+    setBlocks([...blocks.slice(0, index + 1), newBlock, ...blocks.slice(index + 1)]);
+  };
+
+  const deleteBlock = (id: string) => {
+    if (blocks.length > 1) {
+      setBlocks(blocks.filter(block => block.id !== id));
+    }
   };
 
   return (
@@ -29,47 +52,17 @@ const Home: React.FC = () => {
 
       <main>
         {blocks.map(block => (
-          <div key={block.id} className="mb-4">
-            {block.type === 'heading' ? (
-              <h1 className="text-3xl font-bold">
-                <ContentEditable
-                  html={block.content}
-                  onChange={(e) => handleBlockChange(block.id, e.target.value)}
-                />
-              </h1>
-            ) : (
-              <p>
-                <ContentEditable
-                  html={block.content}
-                  onChange={(e) => handleBlockChange(block.id, e.target.value)}
-                />
-              </p>
-            )}
-          </div>
+          <BlockComponent 
+            key={block.id}
+            block={block}
+            onContentChange={handleBlockChange}
+            onTypeChange={handleBlockTypeChange}
+            onAddNewBlock={addNewBlock}
+            onDeleteBlock={deleteBlock}
+          />
         ))}
       </main>
     </div>
-  );
-};
-
-const ContentEditable: React.FC<{
-  html: string;
-  onChange: (e: { target: { value: string } }) => void;
-}> = ({ html, onChange }) => {
-  const [content, setContent] = useState(html);
-
-  const handleChange = (e: React.FormEvent<HTMLDivElement>) => {
-    const newContent = e.currentTarget.innerHTML;
-    setContent(newContent);
-    onChange({ target: { value: newContent } });
-  };
-
-  return (
-    <div
-      contentEditable
-      onInput={handleChange}
-      dangerouslySetInnerHTML={{ __html: content }}
-    />
   );
 };
 
